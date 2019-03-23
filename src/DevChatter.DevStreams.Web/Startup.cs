@@ -14,6 +14,9 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Azure.KeyVault;
+using Microsoft.Azure.KeyVault.Models;
+using Microsoft.Azure.Services.AppAuthentication;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -42,6 +45,11 @@ namespace DevChatter.DevStreams.Web
                 options.CheckConsentNeeded = context => true;
                 options.MinimumSameSitePolicy = SameSiteMode.None;
             });
+
+            var secrets = GetSecrets();
+            Configuration["SkillAppId"] = secrets.appid;
+            Configuration["ConnectionStrings:DefaultConnection"] = secrets.connStr;
+            Configuration["TwitchSettings:ClientId"] = secrets.clientid;
 
             services.Configure<DatabaseSettings>(
                 Configuration.GetSection("ConnectionStrings"));
@@ -83,7 +91,6 @@ namespace DevChatter.DevStreams.Web
 
             SqlMapper.AddTypeHandler(InstantHandler.Default);
             SqlMapper.AddTypeHandler(LocalTimeHandler.Default);
-
 
             services.AddScoped<IStreamSessionService, DapperSessionLookup>();
             services.AddScoped<IScheduledStreamService, ScheduledStreamService>();
@@ -180,5 +187,48 @@ namespace DevChatter.DevStreams.Web
             }
             migrationRunner.MigrateUp();
         }
+
+        private (string appid, string connStr, string clientid) GetSecrets()
+        {
+            var retries = 0;
+            var retry = false;
+
+            AzureServiceTokenProvider azureServiceTokenProvider = new AzureServiceTokenProvider();
+            KeyVaultClient keyVaultClient = new KeyVaultClient(new KeyVaultClient.AuthenticationCallback(azureServiceTokenProvider.KeyVaultTokenCallback));
+
+            do
+            {
+                var waitTime = Math.Min(GetWaitTime(retries), 2000000);
+                System.Threading.Thread.Sleep(waitTime);
+
+                try
+                {
+                    var skillAppId = keyVaultClient
+                        .GetSecretAsync("https://codebasealphakeys.vault.azure.net/secrets/DevStreamsAppId/de4526409e184b439ab110198a4021d4")
+                        .Result;
+                    var devStreamsDb = keyVaultClient
+                        .GetSecretAsync("https://codebasealphakeys.vault.azure.net/secrets/DevStreamsDb/c5dc706283d241a2bbc6c0c8b713d8c7")
+                        .Result;
+                    var twitchClientId = keyVaultClient
+                        .GetSecretAsync("https://codebasealphakeys.vault.azure.net/secrets/TwitchClientid/8bc3e3ff4f5b4fe2b908c3096ceed936")
+                        .Result;
+                    return (skillAppId.Value, devStreamsDb.Value, twitchClientId.Value);
+                }
+                catch (KeyVaultErrorException keyVaultException)
+                {
+                    if ((int)keyVaultException.Response.StatusCode == 429)
+                    {
+                        retry = true;
+                        retries++;
+                    }
+                }
+            }
+            while (retry && (retries++ < 10));
+
+            return (string.Empty, string.Empty, string.Empty);
+        }
+
+        // This method implements exponential backoff if there are 429 errors from Azure Key Vault
+        private static int GetWaitTime(int retryCount) => retryCount > 0 ? ((int)Math.Pow(2, retryCount) * 100) : 0;
     }
 }

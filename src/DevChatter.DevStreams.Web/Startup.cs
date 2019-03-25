@@ -24,6 +24,9 @@ using NodaTime;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Essenbee.Alexa.Lib.Middleware;
+using Essenbee.Alexa.Lib.HttpClients;
+using Essenbee.Alexa.Lib.Interfaces;
 
 namespace DevChatter.DevStreams.Web
 {
@@ -47,9 +50,11 @@ namespace DevChatter.DevStreams.Web
             });
 
             var secrets = GetSecrets();
-            Configuration["SkillAppId"] = secrets.appid;
+            Configuration["SkillId"] = secrets.appid;
             Configuration["ConnectionStrings:DefaultConnection"] = secrets.connStr;
             Configuration["TwitchSettings:ClientId"] = secrets.clientid;
+
+            services.AddHttpClient<IAlexaClient, AlexaClient>();
 
             services.Configure<DatabaseSettings>(
                 Configuration.GetSection("ConnectionStrings"));
@@ -146,6 +151,11 @@ namespace DevChatter.DevStreams.Web
             SetUpDefaultUsersAndRoles(userManager, roleManager).Wait();
 
             app.UseAuthentication();
+
+            app.UseWhen(context => context.Request.Path.StartsWithSegments("/api/alexa"), (appBuilder) =>
+            {
+                appBuilder.UseAlexaRequestValidation();
+            });
 
             app.UseMvc();
 

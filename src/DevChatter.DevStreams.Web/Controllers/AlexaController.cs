@@ -70,7 +70,7 @@ namespace DevChatter.DevStreams.Web.Controllers
                         .Build();
                     break;
                 case "IntentRequest":
-                    response = IntentRequestHandler(alexaRequest);
+                    response = await IntentRequestHandler(alexaRequest);
                     break;
                 case "SessionEndedRequest":
                     response = SessionEndedRequestHandler(alexaRequest);
@@ -90,10 +90,11 @@ namespace DevChatter.DevStreams.Web.Controllers
                 var error = sessionEndedRequest.Error;
                 _logger.LogError($"{error.ErrorType} - {error.ErrorMessage}");
             }
+
             return null;
         }
 
-        private AlexaResponse IntentRequestHandler(AlexaRequest alexaRequest)
+        private async Task<AlexaResponse> IntentRequestHandler(AlexaRequest alexaRequest)
         {
             var intentRequest = alexaRequest.RequestBody as IntentRequest;
 
@@ -104,10 +105,10 @@ namespace DevChatter.DevStreams.Web.Controllers
                 switch (intentRequest.Intent.Name)
                 {
                     case "whenNextIntent":
-                        response = WhenNextResponseHandler(intentRequest);
+                        response = await WhenNextResponseHandler(intentRequest);
                         break;
                     case "whoIsLiveIntent":
-                        response = WhoIsLiveResponseHandler(intentRequest);
+                        response = await WhoIsLiveResponseHandler(intentRequest);
                         break;
                     case "AMAZON.StopIntent":
                     case "AMAZON.CancelIntent":
@@ -140,8 +141,9 @@ namespace DevChatter.DevStreams.Web.Controllers
             return response;
         }
 
-        private AlexaResponse WhenNextResponseHandler(IntentRequest intentRequest)
+        private async Task<AlexaResponse> WhenNextResponseHandler(IntentRequest intentRequest)
         {
+            AlexaResponse response = null;
             var channel = "some streamer";
 
             if (intentRequest.Intent.Slots.Any())
@@ -151,17 +153,17 @@ namespace DevChatter.DevStreams.Web.Controllers
 
             _logger.LogInformation($"User asked for: {channel}");
 
-            var standardisedChannel = channel.Replace(" ", string.Empty);
+            var standardisedChannel = channel
+                .Replace(" ", string.Empty)
+                .Replace(".", string.Empty);
 
             var dbChannel = new Channel();
 
-            string sql = $"SELECT * FROM Channels WHERE SOUNDEX(Name) = SOUNDEX(@standardisedChannel)";
+            var sql = $"SELECT * FROM Channels WHERE SOUNDEX(Name) = SOUNDEX(@standardisedChannel)";
             using (System.Data.IDbConnection connection = new SqlConnection(_dbSettings.DefaultConnection))
             {
-                dbChannel = connection.QuerySingle<Channel>(sql, new { standardisedChannel });
+                dbChannel = await connection.QuerySingleAsync<Channel>(sql, new { standardisedChannel });
             }
-
-            AlexaResponse response = null;
 
             if (dbChannel != null && !string.IsNullOrWhiteSpace(dbChannel.Name))
             {
@@ -172,13 +174,13 @@ namespace DevChatter.DevStreams.Web.Controllers
                 string query = $"SELECT * FROM StreamSessions WHERE Id = @id ORDER BY UtcStartTime";
                 using (System.Data.IDbConnection connection = new SqlConnection(_dbSettings.DefaultConnection))
                 {
-                    using (var multi = connection.QueryMultiple(query, new { id }))
+                    using (var multi = await connection.QueryMultipleAsync(query, new { id }))
                     {
-
-                        sessions = multi.Read<StreamSession>().ToList();
+                        sessions = (await multi.ReadAsync<StreamSession>()).ToList();
                     }
                 }
 
+                _logger.LogInformation($"Stream Sessions found: {sessions.Count}");
 
                 var nextStream = new StreamSession();
                 var zonedDateTime = DateTime.MinValue;
@@ -216,12 +218,14 @@ namespace DevChatter.DevStreams.Web.Controllers
             return response;
         }
 
-        private AlexaResponse WhoIsLiveResponseHandler(IntentRequest intentRequest)
+        private async Task<AlexaResponse> WhoIsLiveResponseHandler(IntentRequest intentRequest)
         {
             // TODO: Do this better. Extract and remove duplication.
-            List<Channel> channels = _repo.GetAll<Channel>().Result;
+            List<Channel> channels = await _repo.GetAll<Channel>();
             List<string> channelNames = channels.Select(x => x.Name).ToList();
-            var liveChannels = _twitchService.GetLiveChannels(channelNames).Result;
+            var liveChannels = await _twitchService.GetLiveChannels(channelNames);
+
+            _logger.LogInformation($"Number of streams live: {liveChannels.Count}");
 
             foreach (var channel in liveChannels)
             {

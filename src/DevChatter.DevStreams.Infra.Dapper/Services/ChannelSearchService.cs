@@ -7,6 +7,7 @@ using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
 using DevChatter.DevStreams.Core.Services;
+using System.Threading.Tasks;
 
 namespace DevChatter.DevStreams.Infra.Dapper.Services
 {
@@ -39,6 +40,19 @@ namespace DevChatter.DevStreams.Infra.Dapper.Services
                 }
 
                 return channels;
+            }
+        }
+
+        public async Task<Channel> FindFirstSoundexMatch(string standardisedChannel)
+        {
+            // ToDo: Extract this
+            var sql = $"SELECT * FROM Channels WHERE SOUNDEX(Name) = SOUNDEX(@standardisedChannel) ORDER BY DIFFERENCE(Name, @standardisedChannel) DESC";
+            using (System.Data.IDbConnection connection = new SqlConnection(_dbSettings.DefaultConnection))
+            {
+                using (var multi = await connection.QueryMultipleAsync(sql, new { standardisedChannel }))
+                {
+                    return (await multi.ReadAsync<Channel>()).FirstOrDefault();
+                }
             }
         }
     }

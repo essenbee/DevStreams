@@ -79,29 +79,29 @@ namespace DevChatter.DevStreams.Web.Alexa
             {
                 var firstFew = string.Join(", ", liveChannels.Take(3));
 
-                var text1 = liveChannels.Count == 1
+                var howMany = liveChannels.Count == 1
                     ? $"{liveChannels.First()} is broadcasting now."
                     : $"{liveChannels.Count} streamers are broadcasting now:";
 
-                var text2 = string.Empty;
+                var streamers = string.Empty;
 
                 if (liveChannels.Count == 2)
                 {
-                    text2 = $"{liveChannels[0]} and {liveChannels[1]}";
+                    streamers = $"{liveChannels[0]} and {liveChannels[1]}";
                 }
 
                 if (liveChannels.Count == 3)
                 {
-                    text2 = $"{liveChannels[0]}, {liveChannels[1]} and {liveChannels[2]}";
+                    streamers = $"{liveChannels[0]}, {liveChannels[1]} and {liveChannels[2]}";
                 }
 
                 if (liveChannels.Count > 3)
                 {
-                    text2 = $"Here are the first three: {firstFew}";
+                    streamers = $"Here are the first three: {firstFew}";
                 }
 
                 response = new ResponseBuilder()
-                    .Say($"{text1} {text2}")
+                    .Say($"{howMany} {streamers}")
                     .WriteSimpleCard("Streaming Now!", $"{firstFew}")
                     .Build();
             }

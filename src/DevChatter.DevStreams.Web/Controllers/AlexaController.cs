@@ -1,8 +1,6 @@
 ﻿using System.Collections.Generic;
-using System.Data.SqlClient;
 using System.Linq;
 using System.Threading.Tasks;
-using Dapper;
 using DevChatter.DevStreams.Core.Data;
 using DevChatter.DevStreams.Core.Model;
 using DevChatter.DevStreams.Core.Services;
@@ -30,9 +28,11 @@ namespace DevChatter.DevStreams.Web.Controllers
         private ICrudRepository _repo;
         private ITwitchService _twitchService;
         private readonly DatabaseSettings _dbSettings;
+        private IChannelSearchService _channelSearch;
 
         public AlexaController(IConfiguration config, ILogger<AlexaController> logger, IAlexaClient client,
-            ICrudRepository crudRepository, ITwitchService twitchService, IOptions<DatabaseSettings> dbSettings)
+            ICrudRepository crudRepository, ITwitchService twitchService, IChannelSearchService channelSearch,
+            IOptions<DatabaseSettings> dbSettings)
         {
             _config = config;
             _logger = logger;
@@ -40,6 +40,7 @@ namespace DevChatter.DevStreams.Web.Controllers
             _repo = crudRepository;
             _twitchService = twitchService;
             _dbSettings = dbSettings.Value;
+            _channelSearch = channelSearch;
         }
 
         [HttpPost]
@@ -149,24 +150,14 @@ namespace DevChatter.DevStreams.Web.Controllers
                     .Replace(" ", string.Empty)
                     .Replace(".", string.Empty);
 
-                var dbChannel = new Channel();
-
-                // ToDo: Extract this
-                var sql = $"SELECT * FROM Channels WHERE SOUNDEX(Name) = SOUNDEX(@standardisedChannel) ORDER BY DIFFERENCE(Name, @standardisedChannel) DESC";
-                using (System.Data.IDbConnection connection = new SqlConnection(_dbSettings.DefaultConnection))
-                {
-                    using (var multi = await connection.QueryMultipleAsync(sql, new { standardisedChannel }))
-                    {
-                        dbChannel = (await multi.ReadAsync<Channel>()).FirstOrDefault();
-                    }
-                }
-
-                var response = await Responses.GetNextStreamResponse(_userTimeZone, channel, dbChannel, _dbSettings);
+                var dbChannel = await _channelSearch.FindFirstSoundexMatch(standardisedChannel);
+                var response = await Responses.GetNextStreamResponse(_userTimeZone, channel, 
+                    dbChannel, _dbSettings);
                 return response;
             }
             else
             {
-                // ToDo: Initiate dialog with use
+                // ToDo: Initiate dialog with user
                 return new ResponseBuilder()
                     .Say("I am sorry but I did not catch which streamer you are enquiring about")
                     .Build();
@@ -183,6 +174,7 @@ namespace DevChatter.DevStreams.Web.Controllers
             return response;
         }
 
-        private bool FoundChannelSlot(IntentRequest intentRequest) => intentRequest.Intent.Slots.Any() && intentRequest?.Intent?.Slots["channel"]?.Value != null;
+        private bool FoundChannelSlot(IntentRequest intentRequest) => intentRequest.Intent.Slots.Any() && 
+            intentRequest?.Intent?.Slots["channel"]?.Value != null;
     }
 }

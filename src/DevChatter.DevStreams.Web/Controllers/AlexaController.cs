@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Threading.Tasks;
@@ -8,6 +7,7 @@ using DevChatter.DevStreams.Core.Data;
 using DevChatter.DevStreams.Core.Model;
 using DevChatter.DevStreams.Core.Services;
 using DevChatter.DevStreams.Core.Settings;
+using DevChatter.DevStreams.Web.Alexa;
 using Essenbee.Alexa.Lib;
 using Essenbee.Alexa.Lib.Interfaces;
 using Essenbee.Alexa.Lib.Request;
@@ -16,9 +16,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Newtonsoft.Json;
-using NodaTime;
-using NodaTime.Extensions;
 
 namespace DevChatter.DevStreams.Web.Controllers
 {
@@ -98,11 +95,9 @@ namespace DevChatter.DevStreams.Web.Controllers
 
         private async Task<AlexaResponse> IntentRequestHandler(AlexaRequest alexaRequest)
         {
-            var intentRequest = alexaRequest.RequestBody as IntentRequest;
-
             AlexaResponse response = null;
 
-            if (intentRequest != null)
+            if (alexaRequest.RequestBody is IntentRequest intentRequest)
             {
                 switch (intentRequest.Intent.Name)
                 {
@@ -128,8 +123,8 @@ namespace DevChatter.DevStreams.Web.Controllers
         private AlexaResponse HelpIntentResponseHandler(IntentRequest intentRequest)
         {
             var response = new ResponseBuilder()
-                .Say("To use this skill, ask me about the schedule of your favourite stream. " +
-                "You can also say Alexa stop to exit the skill")
+                .Say("To use this skill, ask me about when your favourite channel is streaming next; or who is broadcasting now. " +
+                "You can also say Alexa Stop to exit the skill")
                 .Build(); ;
             return response;
         }
@@ -139,90 +134,43 @@ namespace DevChatter.DevStreams.Web.Controllers
             var response = new ResponseBuilder()
                 .Say("Thanks for using the Dev Streams skill")
                 .Build();
-
             return response;
         }
 
         private async Task<AlexaResponse> WhenNextResponseHandler(IntentRequest intentRequest)
         {
-            AlexaResponse response = null;
-            var channel = "some streamer";
-
-            if (intentRequest.Intent.Slots.Any())
+            if (FoundChannelSlot(intentRequest))
             {
-                channel = intentRequest.Intent.Slots["channel"].Value;
-            }
+                var channel = intentRequest.Intent.Slots["channel"].Value;
 
-            _logger.LogInformation($"User asked for: {channel}");
+                _logger.LogInformation($"User asked for: {channel}");
 
-            var standardisedChannel = channel
-                .Replace(" ", string.Empty)
-                .Replace(".", string.Empty);
+                var standardisedChannel = channel
+                    .Replace(" ", string.Empty)
+                    .Replace(".", string.Empty);
 
-            var dbChannel = new Channel();
+                var dbChannel = new Channel();
 
-            var sql = $"SELECT * FROM Channels WHERE SOUNDEX(Name) = SOUNDEX(@standardisedChannel)";
-            using (System.Data.IDbConnection connection = new SqlConnection(_dbSettings.DefaultConnection))
-            {
-                dbChannel = await connection.QuerySingleAsync<Channel>(sql, new { standardisedChannel });
-            }
-
-            if (dbChannel != null && !string.IsNullOrWhiteSpace(dbChannel.Name))
-            {
-                var name = dbChannel.Name;
-                var id = dbChannel.Id;
-                var sessions = new List<StreamSession>();
-                var now = $"{DateTime.UtcNow.Year}-{DateTime.UtcNow.Month}-{DateTime.UtcNow.Day} " +
-                    $"{DateTime.UtcNow.Hour}:{DateTime.UtcNow.Minute}:{DateTime.UtcNow.Second}";
-
-                string query = $"SELECT * FROM StreamSessions WHERE ChannelId = @id AND UtcStartTime > @now ORDER BY UtcStartTime";
+                // ToDo: Extract this
+                var sql = $"SELECT * FROM Channels WHERE SOUNDEX(Name) = SOUNDEX(@standardisedChannel) ORDER BY DIFFERENCE(Name, @standardisedChannel) DESC";
                 using (System.Data.IDbConnection connection = new SqlConnection(_dbSettings.DefaultConnection))
                 {
-                    using (var multi = await connection.QueryMultipleAsync(query, new { id, now }))
+                    using (var multi = await connection.QueryMultipleAsync(sql, new { standardisedChannel }))
                     {
-                        sessions = (await multi.ReadAsync<StreamSession>()).ToList();
+                        dbChannel = (await multi.ReadAsync<Channel>()).FirstOrDefault();
                     }
                 }
 
-                _logger.LogInformation($"Stream Sessions found: {sessions.Count}");
-                _logger.LogInformation($"Next stream found: {sessions.FirstOrDefault()?.UtcStartTime.ToString() ?? "None"}");
-
-                var nextStream = new StreamSession();
-                var zonedDateTime = DateTime.MinValue;
-                var nextStreamTimeFormatted = "currently has no future streams set up in the Dev Streams database";
-
-                if (sessions.Count > 0)
-                {
-                    nextStream = sessions.FirstOrDefault();
-
-                    if (nextStream != null)
-                    {
-                        _logger.LogInformation($"We found: {nextStream.UtcStartTime.ToString()}");
-
-                        DateTimeZone zone = DateTimeZoneProviders.Tzdb[_userTimeZone];
-                        zonedDateTime = nextStream.UtcStartTime.InZone(zone).ToDateTimeUnspecified();
-                        nextStreamTimeFormatted = string.Format("will be streaming next on {0:dddd, MMMM dd} at {0:h:mm tt}", zonedDateTime, zonedDateTime);
-
-                        _logger.LogInformation($"We found next stream on: {zonedDateTime.ToString("f")}");
-                    }
-                }
-                               
-                _logger.LogInformation($"We found: {name}");
-
-                response = new ResponseBuilder()
-                    .Say($"{channel} {nextStreamTimeFormatted}")
-                    .Build();
+                var response = await Responses.GetNextStreamResponse(_userTimeZone, channel, dbChannel, _dbSettings);
+                return response;
             }
             else
             {
-                _logger.LogInformation("We found no matches");
-
-                response = new ResponseBuilder()
-                    .Say($"Sorry, I cound not find {channel} in my database of live coding streamers")
+                // ToDo: Initiate dialog with use
+                return new ResponseBuilder()
+                    .Say("I am sorry but I did not catch which streamer you are enquiring about")
                     .Build();
             }
-
-            return response;
         }
 
         private async Task<AlexaResponse> WhoIsLiveResponseHandler(IntentRequest intentRequest)
@@ -230,56 +178,11 @@ namespace DevChatter.DevStreams.Web.Controllers
             List<Channel> channels = await _repo.GetAll<Channel>();
             List<string> channelNames = channels.Select(x => x.Name).ToList();
             var liveChannels = await _twitchService.GetLiveChannels(channelNames);
-
-            // liveChannels = new List<string> { "codebase alpha", "dev chatter" };
-
-            var response = GetLiveNowResponse(liveChannels);
-
-            var jsonResponse = JsonConvert.SerializeObject(response);
-            _logger.LogInformation($"{jsonResponse}");
+            var response = Responses.GetLiveNowResponse(liveChannels);
 
             return response;
         }
 
-        private AlexaResponse GetLiveNowResponse(List<string> liveChannels)
-        {
-            var response = new ResponseBuilder()
-                .Say("None of the streamers in my database are currently broadcasting")
-                .WriteSimpleCard("Streaming Now!", "None")
-                .Build();
-
-            if (liveChannels != null && liveChannels.Count > 0)
-            {
-                var firstFew = string.Join(", ", liveChannels.Take(3));
-
-                var text1 = liveChannels.Count == 1
-                    ? $"{liveChannels.First()} is broadcasting now."
-                    : $"{liveChannels.Count} streamers are broadcasting now:";
-
-                var text2 = string.Empty;
-
-                if (liveChannels.Count == 2)
-                {
-                    text2 = $"{liveChannels[0]} and {liveChannels[1]}";
-                }
-
-                if (liveChannels.Count == 3)
-                {
-                    text2 = $"{liveChannels[0]}, {liveChannels[1]} and {liveChannels[2]}";
-                }
-
-                if (liveChannels.Count > 3)
-                {
-                    text2 = $"Here are the first three: {firstFew}";
-                }
-
-                response = new ResponseBuilder()
-                    .Say($"{text1} {text2}")
-                    .WriteSimpleCard("Streaming Now!", $"{firstFew}")
-                    .Build();
-            }
-
-            return response;
-        }
+        private bool FoundChannelSlot(IntentRequest intentRequest) => intentRequest.Intent.Slots.Any() && intentRequest?.Intent?.Slots["channel"]?.Value != null;
     }
 }

@@ -18,6 +18,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using NodaTime;
+using NodaTime.Extensions;
 
 namespace DevChatter.DevStreams.Web.Controllers
 {
@@ -61,6 +62,7 @@ namespace DevChatter.DevStreams.Web.Controllers
             var responseBuilder = new ResponseBuilder();
 
             _userTimeZone = await _client.GetUserTimezone(alexaRequest, _logger);
+            _userTimeZone = _userTimeZone.Replace("\"", string.Empty);
 
             switch (alexaRequest.RequestBody.Type)
             {
@@ -170,31 +172,36 @@ namespace DevChatter.DevStreams.Web.Controllers
                 var name = dbChannel.Name;
                 var id = dbChannel.Id;
                 var sessions = new List<StreamSession>();
+                var now = $"{DateTime.UtcNow.Year}-{DateTime.UtcNow.Month}-{DateTime.UtcNow.Day} " +
+                    $"{DateTime.UtcNow.Hour}:{DateTime.UtcNow.Minute}:{DateTime.UtcNow.Second}";
 
-                string query = $"SELECT * FROM StreamSessions WHERE Id = @id ORDER BY UtcStartTime";
+                string query = $"SELECT * FROM StreamSessions WHERE ChannelId = @id AND UtcStartTime > @now ORDER BY UtcStartTime";
                 using (System.Data.IDbConnection connection = new SqlConnection(_dbSettings.DefaultConnection))
                 {
-                    using (var multi = await connection.QueryMultipleAsync(query, new { id }))
+                    using (var multi = await connection.QueryMultipleAsync(query, new { id, now }))
                     {
                         sessions = (await multi.ReadAsync<StreamSession>()).ToList();
                     }
                 }
 
                 _logger.LogInformation($"Stream Sessions found: {sessions.Count}");
+                _logger.LogInformation($"Next stream found: {sessions.FirstOrDefault()?.UtcStartTime.ToString() ?? "None"}");
 
                 var nextStream = new StreamSession();
                 var zonedDateTime = DateTime.MinValue;
+                var nextStreamTimeFormatted = "currently has no future streams set up in the Dev Streams database";
 
-                if (sessions.Any())
+                if (sessions.Count > 0)
                 {
-                    var now = DateTime.UtcNow;
-                    nextStream = sessions.FirstOrDefault(s => s.UtcStartTime.ToUnixTimeTicks() > now.Ticks);
+                    nextStream = sessions.FirstOrDefault();
 
                     if (nextStream != null)
                     {
                         _logger.LogInformation($"We found: {nextStream.UtcStartTime.ToString()}");
-                        var userZone = DateTimeZoneProviders.Tzdb[_userTimeZone];
-                        zonedDateTime = nextStream.UtcStartTime.InZone(userZone).ToDateTimeUnspecified();
+
+                        DateTimeZone zone = DateTimeZoneProviders.Tzdb[_userTimeZone];
+                        zonedDateTime = nextStream.UtcStartTime.InZone(zone).ToDateTimeUnspecified();
+                        nextStreamTimeFormatted = string.Format("will be streaming next on {0:dddd, MMMM dd} at {0:h:mm tt}", zonedDateTime, zonedDateTime);
 
                         _logger.LogInformation($"We found next stream on: {zonedDateTime.ToString("f")}");
                     }
@@ -203,7 +210,7 @@ namespace DevChatter.DevStreams.Web.Controllers
                 _logger.LogInformation($"We found: {name}");
 
                 response = new ResponseBuilder()
-                    .Say($"You have asked about {channel} and they will be streaming next on {zonedDateTime.ToString("f")}")
+                    .Say($"{channel} {nextStreamTimeFormatted}")
                     .Build();
             }
             else

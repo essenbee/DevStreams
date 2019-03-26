@@ -215,10 +215,10 @@ namespace DevChatter.DevStreams.Web.Controllers
             }
             else
             {
-                _logger.LogInformation("We found not matches");
+                _logger.LogInformation("We found no matches");
 
                 response = new ResponseBuilder()
-                    .Say($"I cound not find {channel} in my database")
+                    .Say($"Sorry, I cound not find {channel} in my database of live coding streamers")
                     .Build();
             }
 
@@ -227,25 +227,57 @@ namespace DevChatter.DevStreams.Web.Controllers
 
         private async Task<AlexaResponse> WhoIsLiveResponseHandler(IntentRequest intentRequest)
         {
-            // TODO: Do this better. Extract and remove duplication.
             List<Channel> channels = await _repo.GetAll<Channel>();
             List<string> channelNames = channels.Select(x => x.Name).ToList();
             var liveChannels = await _twitchService.GetLiveChannels(channelNames);
 
-            _logger.LogInformation($"Number of streams live: {liveChannels.Count}");
+            // liveChannels = new List<string> { "codebase alpha", "dev chatter" };
 
-            foreach (var channel in liveChannels)
-            {
-                _logger.LogInformation($"Live now: {channel}");
-            }
-            
-            var response = new ResponseBuilder()
-                .Say($"{liveChannels.First()} is streaming now")
-                .WriteSimpleCard("Streaming Now!", $"{liveChannels.First()}")
-                .Build();
+            var response = GetLiveNowResponse(liveChannels);
 
             var jsonResponse = JsonConvert.SerializeObject(response);
             _logger.LogInformation($"{jsonResponse}");
+
+            return response;
+        }
+
+        private AlexaResponse GetLiveNowResponse(List<string> liveChannels)
+        {
+            var response = new ResponseBuilder()
+                .Say("None of the streamers in my database are currently broadcasting")
+                .WriteSimpleCard("Streaming Now!", "None")
+                .Build();
+
+            if (liveChannels != null && liveChannels.Count > 0)
+            {
+                var firstFew = string.Join(", ", liveChannels.Take(3));
+
+                var text1 = liveChannels.Count == 1
+                    ? $"{liveChannels.First()} is broadcasting now."
+                    : $"{liveChannels.Count} streamers are broadcasting now:";
+
+                var text2 = string.Empty;
+
+                if (liveChannels.Count == 2)
+                {
+                    text2 = $"{liveChannels[0]} and {liveChannels[1]}";
+                }
+
+                if (liveChannels.Count == 3)
+                {
+                    text2 = $"{liveChannels[0]}, {liveChannels[1]} and {liveChannels[2]}";
+                }
+
+                if (liveChannels.Count > 3)
+                {
+                    text2 = $"Here are the first three: {firstFew}";
+                }
+
+                response = new ResponseBuilder()
+                    .Say($"{text1} {text2}")
+                    .WriteSimpleCard("Streaming Now!", $"{firstFew}")
+                    .Build();
+            }
 
             return response;
         }

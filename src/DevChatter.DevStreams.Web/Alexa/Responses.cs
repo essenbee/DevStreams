@@ -26,13 +26,11 @@ namespace DevChatter.DevStreams.Web.Alexa
 
                 // ToDo: Extract this query
                 var sessions = new List<StreamSession>();
-                var now = $"{DateTime.UtcNow.Year}-{DateTime.UtcNow.Month}-{DateTime.UtcNow.Day} " +
-                    $"{DateTime.UtcNow.Hour}:{DateTime.UtcNow.Minute}:{DateTime.UtcNow.Second}";
 
-                string query = $"SELECT * FROM StreamSessions WHERE ChannelId = @id AND UtcStartTime > @now ORDER BY UtcStartTime";
+                string query = $"SELECT * FROM StreamSessions WHERE ChannelId = @id AND UtcStartTime > GETUTCDATE() ORDER BY UtcStartTime";
                 using (System.Data.IDbConnection connection = new SqlConnection(dbSettings.DefaultConnection))
                 {
-                    using (var multi = await connection.QueryMultipleAsync(query, new { id, now }))
+                    using (var multi = await connection.QueryMultipleAsync(query, new { id }))
                     {
                         sessions = (await multi.ReadAsync<StreamSession>()).ToList();
                     }

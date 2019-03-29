@@ -60,7 +60,7 @@ namespace DevChatter.DevStreams.Web.Alexa
             else
             {
                 response = new ResponseBuilder()
-                    .Say($"Sorry, I cound not find {channel} in my database of live coding streamers")
+                    .Say($"Sorry, I could not find {channel} in my database of live coding streamers")
                     .WriteSimpleCard("Not Found", $"{channel} is not in the DevStreams database")
                     .Build();
             }

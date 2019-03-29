@@ -94,6 +94,14 @@ namespace DevChatter.DevStreams.Web.Controllers
                 _logger.LogError($"{error.ErrorType} - {error.ErrorMessage}");
             }
 
+            if (sessionEndedRequest.Reason == Reason.UserInitiated)
+            {
+                var response = new ResponseBuilder()
+                .Say(string.Empty)
+                .Build();
+                return response;
+            }
+
             return null;
         }
 
@@ -126,10 +134,14 @@ namespace DevChatter.DevStreams.Web.Controllers
 
         private AlexaResponse HelpIntentResponseHandler(IntentRequest intentRequest)
         {
+            var text = "To use this skill, ask me about when your favourite channel is streaming next; or who is broadcasting now. " +
+                "You can also say Alexa Stop to exit the skill";
+            var reprompt = "Ask me who is streaming now " +
+                        "or when your favourite channels are streaming next";
+
             var response = new ResponseBuilder()
-                .Say("To use this skill, ask me about when your favourite channel is streaming next; or who is broadcasting now. " +
-                "You can also say Alexa Stop to exit the skill")
-                .Build(); ;
+                .Ask(text, reprompt)
+                .Build();
             return response;
         }
 

@@ -57,7 +57,6 @@ namespace DevChatter.DevStreams.Web.Controllers
             }
 
             AlexaResponse response = null;
-            var responseBuilder = new ResponseBuilder();
 
             _userTimeZone = await _client.GetUserTimezone(alexaRequest, _logger);
             _userTimeZone = _userTimeZone.Replace("\"", string.Empty);
@@ -65,8 +64,12 @@ namespace DevChatter.DevStreams.Web.Controllers
             switch (alexaRequest.RequestBody.Type)
             {
                 case "LaunchRequest":
-                    var ssml = @"<speak>Welcome to the Dev Streams skill</speak>";
-                    response = responseBuilder.SayWithSsml(ssml)
+                    var text = "Welcome to the Dev Streams skill. Ask me who is streaming now " +
+                        "or when your favourite channels are streaming next";
+                    var reprompt = "Ask me who is streaming now " +
+                        "or when your favourite channels are streaming next";
+                    response = new ResponseBuilder()
+                        .Ask(text, reprompt)
                         .Build();
                     break;
                 case "IntentRequest":
@@ -140,8 +143,6 @@ namespace DevChatter.DevStreams.Web.Controllers
 
         private async Task<AlexaResponse> WhenNextResponseHandler(IntentRequest intentRequest)
         {
-            if (FoundChannelSlot(intentRequest))
-            {
                 var channel = intentRequest.Intent.Slots["channel"].Value;
 
                 _logger.LogInformation($"User asked for: {channel}");
@@ -154,14 +155,6 @@ namespace DevChatter.DevStreams.Web.Controllers
                 var response = await Responses.GetNextStreamResponse(_userTimeZone, channel, 
                     dbChannel, _dbSettings);
                 return response;
-            }
-            else
-            {
-                // ToDo: Initiate dialog with user
-                return new ResponseBuilder()
-                    .Say("I am sorry but I did not catch which streamer you are enquiring about")
-                    .Build();
-            }
         }
 
         private async Task<AlexaResponse> WhoIsLiveResponseHandler(IntentRequest intentRequest)
@@ -173,8 +166,5 @@ namespace DevChatter.DevStreams.Web.Controllers
 
             return response;
         }
-
-        private bool FoundChannelSlot(IntentRequest intentRequest) => intentRequest.Intent.Slots.Any() && 
-            intentRequest?.Intent?.Slots["channel"]?.Value != null;
     }
 }

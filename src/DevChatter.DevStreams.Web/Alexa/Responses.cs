@@ -54,12 +54,14 @@ namespace DevChatter.DevStreams.Web.Alexa
 
                 response = new ResponseBuilder()
                     .Say($"{name} {nextStreamTimeFormatted}")
+                    .WriteSimpleCard($"{name}", $"{name} {nextStreamTimeFormatted}")
                     .Build();
             }
             else
             {
                 response = new ResponseBuilder()
                     .Say($"Sorry, I cound not find {channel} in my database of live coding streamers")
+                    .WriteSimpleCard("Not Found", $"{channel} is not in the DevStreams database")
                     .Build();
             }
 

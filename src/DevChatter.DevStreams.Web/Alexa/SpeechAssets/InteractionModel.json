@@ -1,228 +1,275 @@
 {
-  "interactionModel": {
-    "languageModel": {
-      "invocationName": "live coding",
-      "intents": [
-        {
-          "name": "AMAZON.FallbackIntent",
-          "samples": []
+    "interactionModel": {
+        "languageModel": {
+            "invocationName": "live coding",
+            "intents": [
+                {
+                    "name": "AMAZON.FallbackIntent",
+                    "samples": []
+                },
+                {
+                    "name": "AMAZON.CancelIntent",
+                    "samples": []
+                },
+                {
+                    "name": "AMAZON.HelpIntent",
+                    "samples": []
+                },
+                {
+                    "name": "AMAZON.StopIntent",
+                    "samples": []
+                },
+                {
+                    "name": "AMAZON.NavigateHomeIntent",
+                    "samples": []
+                },
+                {
+                    "name": "whenNextIntent",
+                    "slots": [
+                        {
+                            "name": "channel",
+                            "type": "channel",
+                            "samples": [
+                                "About {channel}",
+                                "{channel} please",
+                                "I'm intersted in {channel}",
+                                "I am asking about {channel}",
+                                "{channel}"
+                            ]
+                        }
+                    ],
+                    "samples": [
+                        "when will {channel} be on next",
+                        "when will {channel} be broadcasting",
+                        "when will {channel} be live",
+                        "when will {channel} be streaming",
+                        "when will {channel} be broadcasting next",
+                        "when will {channel} be live next",
+                        "when will {channel} be streaming next",
+                        "when is {channel} on next",
+                        "when is {channel} live",
+                        "when is {channel} live next",
+                        "when is {channel} broadcasting next",
+                        "when is {channel} broadcasting",
+                        "when is {channel} going live next",
+                        "when is {channel} going live",
+                        "when is {channel} streaming next",
+                        "when is {channel} streaming"
+                    ]
+                },
+                {
+                    "name": "whoIsLiveIntent",
+                    "slots": [],
+                    "samples": [
+                        "who is on now",
+                        "who is broadcasting right now",
+                        "who is broadcasting now",
+                        "who is live on Twitch now",
+                        "who's live on Twitch",
+                        "who is live right now",
+                        "who is streaming right now",
+                        "who is streaming now",
+                        "who is live now"
+                    ]
+                }
+            ],
+            "types": [
+                {
+                    "name": "channel",
+                    "values": [
+                        {
+                            "name": {
+                                "value": "bluebird 2000"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "dipppy 555"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "person 23"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "streamer 2"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "X bot 1991"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "Q bot 123"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "V bot 5"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "Z bot 99"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "streamer with a very long twitch or youtube name"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "I am not myself"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "the grumpy game dev"
+                            }
+                        },
+                        {
+                            "id": "LuckyNoS7evin",
+                            "name": {
+                                "value": "Lucky Number 7"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "Adron Hall"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "Robert Tables"
+                            }
+                        },
+                        {
+                          "name": {
+                            "value": "James Montemagno"
+                          }
+                        },
+                        {
+                            "name": {
+                                "value": "rambling geek"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "C payette"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "c sharp fritz"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "honest dan games"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "the michael jolley"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "chief CLL"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "no op kat"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "noopkat"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "instafluff"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "clarkio"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "code rushed"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "dev chatter"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "codebase alpha"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "code base alpha"
+                            }
+                        }
+                    ]
+                }
+            ]
         },
-        {
-          "name": "AMAZON.CancelIntent",
-          "samples": []
+        "dialog": {
+            "intents": [
+                {
+                    "name": "whenNextIntent",
+                    "confirmationRequired": false,
+                    "prompts": {},
+                    "slots": [
+                        {
+                            "name": "channel",
+                            "type": "channel",
+                            "confirmationRequired": false,
+                            "elicitationRequired": true,
+                            "prompts": {
+                                "elicitation": "Elicit.Slot.1177382277374.860821313614"
+                            }
+                        }
+                    ]
+                }
+            ],
+            "delegationStrategy": "ALWAYS"
         },
-        {
-          "name": "AMAZON.HelpIntent",
-          "samples": []
-        },
-        {
-          "name": "AMAZON.StopIntent",
-          "samples": []
-        },
-        {
-          "name": "AMAZON.NavigateHomeIntent",
-          "samples": []
-        },
-        {
-          "name": "whenNextIntent",
-          "slots": [
+        "prompts": [
             {
-              "name": "channel",
-              "type": "channel",
-              "samples": [
-                "About {channel}",
-                "{channel} please",
-                "I'm intersted in {channel}",
-                "I am asking about {channel}",
-                "{channel}"
-              ]
+                "id": "Elicit.Slot.1177382277374.860821313614",
+                "variations": [
+                    {
+                        "type": "PlainText",
+                        "value": "Sorry, which streamer are you asking about?"
+                    },
+                    {
+                        "type": "PlainText",
+                        "value": "Sorry, which channel are you asking about?"
+                    },
+                    {
+                        "type": "PlainText",
+                        "value": "Sorry, which streamer are you enquiring about?"
+                    },
+                    {
+                        "type": "PlainText",
+                        "value": "Sorry, which channel are you interested in?"
+                    }
+                ]
             }
-          ],
-          "samples": [
-            "when is {channel} on next",
-            "when is {channel} live",
-            "when is {channel} live next",
-            "when is {channel} broadcasting next",
-            "when is {channel} broadcasting",
-            "when is {channel} going live next",
-            "when is {channel} going live",
-            "when is {channel} streaming next",
-            "when is {channel} streaming"
-          ]
-        },
-        {
-          "name": "whoIsLiveIntent",
-          "slots": [],
-          "samples": [
-            "who is on now",
-            "who is broadcasting right now",
-            "who is broadcasting now",
-            "who is live on Twitch now",
-            "who's live on Twitch",
-            "who is live right now",
-            "who is streaming right now",
-            "who is streaming now",
-            "who is live now"
-          ]
-        }
-      ],
-      "types": [
-        {
-          "name": "channel",
-          "values": [
-            {
-              "name": {
-                "value": "streamer with a very long twitch or youtube name"
-              }
-            },
-            {
-              "name": {
-                "value": "I am not myself"
-              }
-            },
-            {
-              "name": {
-                "value": "the grumpy game dev"
-              }
-            },
-            {
-              "id": "LuckyNoS7evin",
-              "name": {
-                "value": "Lucky Number 7"
-              }
-            },
-            {
-              "name": {
-                "value": "Adron Hall"
-              }
-            },
-            {
-              "name": {
-                "value": "Robert Tables"
-              }
-            },
-            {
-              "name": {
-                "value": "James Montemagno"
-              }
-            },
-            {
-              "name": {
-                "value": "rambling geek"
-              }
-            },
-            {
-              "name": {
-                "value": "C payette"
-              }
-            },
-            {
-              "name": {
-                "value": "c sharp fritz"
-              }
-            },
-            {
-              "name": {
-                "value": "honest dan games"
-              }
-            },
-            {
-              "name": {
-                "value": "the michael jolley"
-              }
-            },
-            {
-              "name": {
-                "value": "chief CLL"
-              }
-            },
-            {
-              "name": {
-                "value": "no op kat"
-              }
-            },
-            {
-              "name": {
-                "value": "noopkat"
-              }
-            },
-            {
-              "name": {
-                "value": "instafluff"
-              }
-            },
-            {
-              "name": {
-                "value": "clarkio"
-              }
-            },
-            {
-              "name": {
-                "value": "code rushed"
-              }
-            },
-            {
-              "name": {
-                "value": "dev chatter"
-              }
-            },
-            {
-              "name": {
-                "value": "codebase alpha"
-              }
-            },
-            {
-              "name": {
-                "value": "code base alpha"
-              }
-            }
-          ]
-        }
-      ]
-    },
-    "dialog": {
-      "intents": [
-        {
-          "name": "whenNextIntent",
-          "confirmationRequired": false,
-          "prompts": {},
-          "slots": [
-            {
-              "name": "channel",
-              "type": "channel",
-              "confirmationRequired": false,
-              "elicitationRequired": true,
-              "prompts": {
-                "elicitation": "Elicit.Slot.1177382277374.860821313614"
-              }
-            }
-          ]
-        }
-      ],
-      "delegationStrategy": "ALWAYS"
-    },
-    "prompts": [
-      {
-        "id": "Elicit.Slot.1177382277374.860821313614",
-        "variations": [
-          {
-            "type": "PlainText",
-            "value": "Sorry, which streamer are you asking about?"
-          },
-          {
-            "type": "PlainText",
-            "value": "Sorry, which channel are you asking about?"
-          },
-          {
-            "type": "PlainText",
-            "value": "Sorry, which streamer are you enquiring about?"
-          },
-          {
-            "type": "PlainText",
-            "value": "Sorry, which channel are you interested in?"
-          }
         ]
-      }
-    ]
-  }
+    }
 }

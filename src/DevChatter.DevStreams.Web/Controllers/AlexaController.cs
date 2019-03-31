@@ -64,13 +64,7 @@ namespace DevChatter.DevStreams.Web.Controllers
             switch (alexaRequest.RequestBody.Type)
             {
                 case "LaunchRequest":
-                    var text = "Welcome to the Dev Streams skill. Ask me who is streaming now " +
-                        "or when your favourite channels are streaming next";
-                    var reprompt = "Ask me who is streaming now " +
-                        "or when your favourite channels are streaming next";
-                    response = new ResponseBuilder()
-                        .Ask(text, reprompt)
-                        .Build();
+                    response = Responses.GiveLaunchResponse();
                     break;
                 case "IntentRequest":
                     response = await IntentRequestHandler(alexaRequest);
@@ -126,47 +120,41 @@ namespace DevChatter.DevStreams.Web.Controllers
                     case "AMAZON.HelpIntent":
                         response = HelpIntentResponseHandler(intentRequest);
                         break;
+                    case "AMAZON.FallbackIntent":
+                        response = FallbackIntentResponseHandler(intentRequest);
+                        break;
                 }
             }
 
             return response;
         }
 
+        private AlexaResponse FallbackIntentResponseHandler(IntentRequest intentRequest)
+        {
+            return Responses.GiveFallbackResponse();
+        }
+
         private AlexaResponse HelpIntentResponseHandler(IntentRequest intentRequest)
         {
-            var text = "To use this skill, ask me about when your favourite channel is streaming next; or who is broadcasting now. " +
-                "You can also say Alexa Stop to exit the skill";
-            var reprompt = "Ask me who is streaming now " +
-                        "or when your favourite channels are streaming next";
-
-            var response = new ResponseBuilder()
-                .Ask(text, reprompt)
-                .Build();
-            return response;
+            return Responses.GiveHelpResponse();
         }
 
         private AlexaResponse CancelOrStopResponseHandler(IntentRequest intentRequest)
         {
-            var response = new ResponseBuilder()
-                .Say("Thanks for using the Dev Streams skill")
-                .Build();
-            return response;
+            return Responses.GiveStopResponse();
         }
 
         private async Task<AlexaResponse> WhenNextResponseHandler(IntentRequest intentRequest)
         {
-                var channel = intentRequest.Intent.Slots["channel"].Value;
+            var channel = intentRequest.Intent.Slots["channel"].Value;
+            var standardisedChannel = channel
+                .Replace(" ", string.Empty)
+                .Replace(".", string.Empty);
+            var dbChannel = await _channelSearch.FindFirstSoundexMatch(standardisedChannel);
+            var response = await Responses.GetNextStreamResponse(_userTimeZone, channel,
+                dbChannel, _dbSettings);
 
-                _logger.LogInformation($"User asked for: {channel}");
-
-                var standardisedChannel = channel
-                    .Replace(" ", string.Empty)
-                    .Replace(".", string.Empty);
-
-                var dbChannel = await _channelSearch.FindFirstSoundexMatch(standardisedChannel);
-                var response = await Responses.GetNextStreamResponse(_userTimeZone, channel, 
-                    dbChannel, _dbSettings);
-                return response;
+            return response;
         }
 
         private async Task<AlexaResponse> WhoIsLiveResponseHandler(IntentRequest intentRequest)

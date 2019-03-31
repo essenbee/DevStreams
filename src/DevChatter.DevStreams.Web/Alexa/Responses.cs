@@ -2,6 +2,7 @@
 using DevChatter.DevStreams.Core.Model;
 using DevChatter.DevStreams.Core.Settings;
 using Essenbee.Alexa.Lib;
+using Essenbee.Alexa.Lib.Request;
 using Essenbee.Alexa.Lib.Response;
 using NodaTime;
 using System;
@@ -107,6 +108,64 @@ namespace DevChatter.DevStreams.Web.Alexa
             }
 
             return response;
+        }
+
+        public static AlexaResponse GiveLaunchResponse()
+        {
+            var text = "Welcome to the Dev Streams skill. Ask me who is streaming now " +
+                        "or when your favourite channels are streaming next";
+            var reprompt = "Ask me who is streaming now " +
+                "or when your favourite channels are streaming next";
+
+            return new ResponseBuilder()
+                .Ask(text, reprompt)
+                .Build();
+        }
+
+        public static AlexaResponse GiveHelpResponse()
+        {
+            var text = "To use this skill, ask me about when your favourite channel is streaming next; or who is broadcasting now. " +
+                       "You can also say Alexa Stop to exit the skill";
+            var reprompt = "Ask me who is streaming now " +
+                        "or when your favourite channels are streaming next";
+
+            var response = new ResponseBuilder()
+                .Ask(text, reprompt)
+                .Build();
+            return response;
+        }
+
+        public static AlexaResponse GiveStopResponse()
+        {
+            var response = new ResponseBuilder()
+                    .Say("Thanks for using the Dev Streams skill")
+                    .Build();
+            return response;
+        }
+
+        public static AlexaResponse GiveFallbackResponse()
+        {
+            // Assume we have a WhenNext intent
+            var channelSlot = new Slot
+            {
+                Name = "channel",
+                Value = string.Empty,
+                ConfirmationStatus = "None"
+            };
+
+            var whenNextIntent = new Intent
+            {
+                Name = "whenNextIntent",
+                ConfirmationStatus = "None",
+                Slots = new Dictionary<string, Slot>
+                {
+                    { "channel", channelSlot }
+                }
+            };
+
+            return new ResponseBuilder()
+                .DialogDelegate(whenNextIntent)
+                .Build();
         }
     }
 }
